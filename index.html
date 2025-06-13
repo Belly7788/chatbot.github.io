@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WSP ChatBot</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .chat-container {
+        max-height: calc(100vh - 120px);
+      }
+      .message {
+        max-width: 80%;
+        animation: fadeIn 0.3s ease-in;
+      }
+      .user-message {
+        background-color: #3b82f6;
+      }
+      .bot-message {
+        background-color: #4a5568;
+      }
+      #response strong {
+        color: #f87171;
+      }
+      #response ul {
+        padding-left: 1.25rem;
+      }
+      #response li {
+        list-style: none;
+        margin-bottom: 0.25rem;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #4a5568;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1a202c;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-gray-100 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-3xl flex flex-col h-screen">
+      <!-- Header -->
+      <div class="bg-gray-800 p-4 rounded-t-lg shadow-lg">
+        <h2 class="text-xl font-bold text-center text-blue-400">BELLY ChatBot</h2>
+      </div>
+      <!-- Chat Area -->
+      <div id="chatArea" class="flex-1 p-4 overflow-y-auto chat-container bg-gray-900">
+        <div id="response" class="space-y-4"></div>
+      </div>
+      <!-- Input Area -->
+      <div class="bg-gray-800 p-4 rounded-b-lg shadow-lg">
+        <div class="flex items-center space-x-2">
+          <input
+            type="text"
+            id="userInput"
+			autocomplete="off"
+            class="flex-1 p-3 bg-gray-700 text-gray-100 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            placeholder="Ask me anything..."
+            onkeypress="if(event.key === 'Enter') sendMessage()"
+          />
+          <button
+            class="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition"
+            onclick="sendMessage()"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <script>
+      async function sendMessage() {
+        const input = document.getElementById("userInput").value.trim();
+        const responseDiv = document.getElementById("response");
+
+        if (!input) {
+          appendMessage("bot", "Please enter a message.");
+          return;
+        }
+
+        // Append user message
+        appendMessage("user", input);
+        document.getElementById("userInput").value = "";
+
+        // Append loading message
+        const loadingDiv = appendMessage("bot", "");
+        const loadingText = "Loading...";
+        let loadingIndex = 0;
+
+        function typeWriterLoading() {
+          if (loadingIndex < loadingText.length) {
+            loadingDiv.querySelector(".message-content").innerHTML += loadingText.charAt(loadingIndex);
+            loadingIndex++;
+            setTimeout(typeWriterLoading, 100);
+          }
+        }
+        typeWriterLoading();
+
+        // Check for creator question
+        const creatorKeywords = ["creator", "who made", "who created", "belly chatbot", "អ្នកបង្កើត", "នរណា"];
+        if (creatorKeywords.some(keyword => input.toLowerCase().includes(keyword))) {
+          loadingDiv.remove();
+          const creatorResponse = "អ្នកបង្កើត BELLY ChatBot ឈ្មោះ **Kheng Chetra** ជាបុរស កើតឆ្នាំ **2004**។ បច្ចុប្បន្នកំពុងសិក្សានៅ **សាកលវិទ្យាល័យភូមិន្ទភ្នំពេញ**។";
+          const resultDiv = appendMessage("bot", "");
+          let resultIndex = 0;
+          const plainText = creatorResponse;
+
+          function typeWriterResult() {
+            if (resultIndex < plainText.length) {
+              resultDiv.querySelector(".message-content").innerHTML += plainText.charAt(resultIndex);
+              resultIndex++;
+              setTimeout(typeWriterResult, 50);
+            } else {
+              resultDiv.querySelector(".message-content").innerHTML = marked.parse(creatorResponse);
+            }
+          }
+          typeWriterResult();
+        } else {
+          // Proceed with API call for other questions
+          try {
+            const response = await fetch(
+              "https://openrouter.ai/api/v1/chat/completions",
+              {
+                method: "POST",
+                headers: {
+                  Authorization:
+                    "Bearer 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",
+                  "HTTP-Referer": "https://www.sitename.com",
+                  "X-Title": "SiteName",
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  model: "deepseek/deepseek-r1:free",
+                  messages: [{ role: "user", content: input }],
+                }),
+              }
+            );
+            const data = await response.json();
+            const markdownText =
+              data.choices?.[0]?.message?.content || "No response received.";
+
+            // Remove loading message
+            loadingDiv.remove();
+
+            // Append bot response with typewriter effect
+            const resultDiv = appendMessage("bot", "");
+            let resultIndex = 0;
+            const plainText = markdownText;
+
+            function typeWriterResult() {
+              if (resultIndex < plainText.length) {
+                resultDiv.querySelector(".message-content").innerHTML += plainText.charAt(resultIndex);
+                resultIndex++;
+                setTimeout(typeWriterResult, 50);
+              } else {
+                resultDiv.querySelector(".message-content").innerHTML = marked.parse(markdownText);
+              }
+            }
+            typeWriterResult();
+          } catch (error) {
+            loadingDiv.remove();
+            appendMessage("bot", "Error: " + error.message);
+          }
+        }
+
+        // Scroll to bottom
+        const chatArea = document.getElementById("chatArea");
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      function appendMessage(sender, content) {
+        const responseDiv = document.getElementById("response");
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `message p-3 rounded-lg mb-2 ${
+          sender === "user" ? "user-message ml-auto text-white" : "bot-message text-gray-100"
+        }`;
+        messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
+        responseDiv.appendChild(messageDiv);
+        return messageDiv;
+      }
+    </script>
+  </body>
+</html>
